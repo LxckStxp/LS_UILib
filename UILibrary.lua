@@ -8,26 +8,34 @@ local UILibrary = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
--- Grok-inspired Color Palette - Sharp and Modern
+-- Grok-inspired Color Palette - High Contrast for Readability
 UILibrary.Colors = {
     -- Primary Colors
-    Primary = Color3.fromRGB(0, 0, 0),           -- Pure Black
-    Secondary = Color3.fromRGB(20, 20, 20),      -- Dark Gray
-    Accent = Color3.fromRGB(255, 255, 255),      -- Pure White
+    Primary = Color3.fromRGB(15, 15, 15),        -- Very Dark Gray (not pure black)
+    Secondary = Color3.fromRGB(30, 30, 30),      -- Dark Gray
+    Accent = Color3.fromRGB(245, 245, 245),      -- Off-White (easier on eyes)
     
     -- Functional Colors
-    Success = Color3.fromRGB(0, 255, 127),       -- Bright Green
-    Warning = Color3.fromRGB(255, 193, 7),       -- Amber
-    Error = Color3.fromRGB(255, 71, 87),         -- Red
-    Info = Color3.fromRGB(0, 123, 255),          -- Blue
+    Success = Color3.fromRGB(34, 197, 94),       -- Vibrant Green
+    Warning = Color3.fromRGB(251, 191, 36),      -- Golden Yellow  
+    Error = Color3.fromRGB(239, 68, 68),         -- Strong Red
+    Info = Color3.fromRGB(59, 130, 246),         -- Clear Blue
     
-    -- Subtle Colors
-    Muted = Color3.fromRGB(108, 117, 125),       -- Gray
-    Light = Color3.fromRGB(248, 249, 250),       -- Off-white
-    Dark = Color3.fromRGB(33, 37, 41),           -- Almost black
+    -- Text Colors for High Contrast
+    TextPrimary = Color3.fromRGB(255, 255, 255), -- Pure White for main text
+    TextSecondary = Color3.fromRGB(200, 200, 200), -- Light Gray for secondary text
+    TextMuted = Color3.fromRGB(160, 160, 160),   -- Medium Gray for subtle text
+    TextDark = Color3.fromRGB(30, 30, 30),       -- Dark text for light backgrounds
     
-    -- Transparency overlays
+    -- Background Colors
+    Background = Color3.fromRGB(25, 25, 25),     -- Main background
+    Surface = Color3.fromRGB(40, 40, 40),        -- Surface elements
     Overlay = Color3.fromRGB(0, 0, 0),           -- For overlays
+    
+    -- Legacy support (keeping old names but updating values)
+    Muted = Color3.fromRGB(140, 140, 140),       -- Brighter gray for visibility
+    Light = Color3.fromRGB(248, 249, 250),       -- Off-white
+    Dark = Color3.fromRGB(20, 20, 20),           -- Very dark
     Glass = Color3.fromRGB(255, 255, 255),       -- For glass effects
 }
 
@@ -86,18 +94,22 @@ end
 function UILibrary:CreateButton(properties)
     local button = Instance.new("TextButton")
     
-    -- Clean button styling
-    button.BackgroundColor3 = properties.BackgroundColor or UILibrary.Colors.Primary
+    -- Clean button styling with better contrast
+    button.BackgroundColor3 = properties.BackgroundColor or UILibrary.Colors.Surface
     button.BackgroundTransparency = properties.BackgroundTransparency or UILibrary.Transparency.Subtle
     button.BorderSizePixel = 0
     button.Size = properties.Size or UDim2.new(0, 100, 0, 32)
     button.Position = properties.Position or UDim2.new(0, 0, 0, 0)
     button.Text = properties.Text or "Button"
-    button.TextColor3 = properties.TextColor or UILibrary.Colors.Accent
+    button.TextColor3 = properties.TextColor or UILibrary.Colors.TextPrimary
     button.TextTransparency = properties.TextTransparency or 0
     button.TextSize = properties.TextSize or 13
     button.Font = properties.Font or Enum.Font.GothamMedium
     button.AutoButtonColor = false -- Disable default button animations
+    
+    -- Add text stroke for better readability
+    button.TextStrokeTransparency = properties.TextStroke == false and 1 or 0.8
+    button.TextStrokeColor3 = UILibrary.Colors.Primary
     
     if properties.Parent then
         button.Parent = properties.Parent
@@ -108,10 +120,10 @@ function UILibrary:CreateButton(properties)
     corner.CornerRadius = UDim.new(0, properties.CornerRadius or 4)
     corner.Parent = button
     
-    -- Subtle border
+    -- Subtle border for better definition
     if properties.Border ~= false then
         local border = Instance.new("UIStroke")
-        border.Color = properties.BorderColor or UILibrary.Colors.Muted
+        border.Color = properties.BorderColor or UILibrary.Colors.TextMuted
         border.Transparency = properties.BorderTransparency or UILibrary.Transparency.Light
         border.Thickness = properties.BorderThickness or 0.5
         border.Parent = button
@@ -123,7 +135,7 @@ function UILibrary:CreateButton(properties)
     
     button.MouseEnter:Connect(function()
         local hoverTween = TweenService:Create(button, UILibrary.Animations.Quick, {
-            BackgroundTransparency = math.max(0, originalTransparency - 0.1)
+            BackgroundTransparency = math.max(0, originalTransparency - 0.15)
         })
         local textTween = TweenService:Create(button, UILibrary.Animations.Quick, {
             TextTransparency = math.max(0, originalTextTransparency - 0.1)
@@ -165,18 +177,20 @@ end
 function UILibrary:CreateLabel(properties)
     local label = Instance.new("TextLabel")
     
-    -- Clean text styling
+    -- Clean text styling with high contrast
     label.BackgroundTransparency = 1
     label.Size = properties.Size or UDim2.new(0, 100, 0, 20)
     label.Position = properties.Position or UDim2.new(0, 0, 0, 0)
     label.Text = properties.Text or "Label"
-    label.TextColor3 = properties.TextColor or UILibrary.Colors.Primary
+    label.TextColor3 = properties.TextColor or UILibrary.Colors.TextPrimary
     label.TextTransparency = properties.TextTransparency or 0
     label.TextSize = properties.TextSize or 13
     label.Font = properties.Font or Enum.Font.Gotham
     label.TextXAlignment = properties.TextXAlignment or Enum.TextXAlignment.Center
     label.TextYAlignment = properties.TextYAlignment or Enum.TextYAlignment.Center
-    label.TextStrokeTransparency = properties.TextStroke and 0.7 or 1
+    
+    -- Add subtle text stroke for better readability on transparent backgrounds
+    label.TextStrokeTransparency = properties.TextStroke == false and 1 or 0.8
     label.TextStrokeColor3 = UILibrary.Colors.Primary
     
     if properties.Parent then
@@ -191,21 +205,22 @@ function UILibrary:CreateContainer(properties)
     local container = self:CreateFrame({
         Size = properties.Size or UDim2.new(1, -16, 0, 100),
         Position = properties.Position or UDim2.new(0, 8, 0, 0),
-        BackgroundColor = properties.BackgroundColor or UILibrary.Colors.Accent,
+        BackgroundColor = properties.BackgroundColor or UILibrary.Colors.Surface,
         BackgroundTransparency = properties.BackgroundTransparency or UILibrary.Transparency.Light,
         CornerRadius = properties.CornerRadius or 6,
         BorderTransparency = UILibrary.Transparency.Medium,
+        BorderColor = UILibrary.Colors.TextMuted,
         Parent = properties.Parent
     })
     
-    -- Optional header
+    -- Optional header with better contrast
     if properties.HeaderText then
         local header = self:CreateLabel({
             Size = UDim2.new(1, -16, 0, 20),
             Position = UDim2.new(0, 8, 0, 6),
             Text = properties.HeaderText,
-            TextColor = properties.HeaderColor or UILibrary.Colors.Muted,
-            TextTransparency = 0.2,
+            TextColor = properties.HeaderColor or UILibrary.Colors.TextSecondary,
+            TextTransparency = 0,
             TextSize = properties.HeaderSize or 11,
             Font = Enum.Font.GothamMedium,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -287,9 +302,9 @@ function UILibrary:CreateCardButton(properties)
         Size = properties.Size or UDim2.new(0, 28, 0, 22),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
         Text = properties.Text or "1",
-        BackgroundColor = UILibrary.Colors.Accent,
+        BackgroundColor = UILibrary.Colors.Surface,
         BackgroundTransparency = UILibrary.Transparency.Light,
-        TextColor = UILibrary.Colors.Primary,
+        TextColor = UILibrary.Colors.TextPrimary,
         TextTransparency = 0,
         TextSize = 11,
         Font = Enum.Font.GothamBold,
@@ -308,8 +323,8 @@ function UILibrary:CreateTargetButton(properties)
         Text = properties.Text or "21",
         BackgroundColor = properties.Color or UILibrary.Colors.Info,
         BackgroundTransparency = properties.Selected and UILibrary.Transparency.Heavy or UILibrary.Transparency.Subtle,
-        TextColor = UILibrary.Colors.Accent,
-        TextTransparency = properties.Selected and 0 or 0.3,
+        TextColor = UILibrary.Colors.TextPrimary,
+        TextTransparency = properties.Selected and 0 or 0.2,
         TextSize = 12,
         Font = Enum.Font.GothamBold,
         CornerRadius = 2,
@@ -334,7 +349,7 @@ function UILibrary:CreateCardIndicator(properties)
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(0, 0, 0, 0),
         Text = properties.Text or "1",
-        TextColor = UILibrary.Colors.Accent,
+        TextColor = UILibrary.Colors.TextPrimary,
         TextTransparency = 0,
         TextSize = 9,
         Font = Enum.Font.GothamBold,

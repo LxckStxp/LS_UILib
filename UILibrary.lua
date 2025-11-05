@@ -1,12 +1,17 @@
--- UILibrary v2.0 - Grok-inspired Minimalistic Design
+-- UILibrary v2.1 - Grok-inspired Minimalistic Design
 -- Sleek, sharp, and modern UI components for Roblox
 -- By LxckStxp
 
 local UILibrary = {}
+UILibrary.__index = UILibrary
+UILibrary._VERSION = "2.1"
+UILibrary._instances = {} -- Track active instances
 
 -- Services
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 -- Grok-inspired Color Palette - High Contrast for Readability
 UILibrary.Colors = {
@@ -58,8 +63,68 @@ UILibrary.Animations = {
     Bounce = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 }
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- INSTANCE MANAGEMENT
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Create a new UI instance with unique identifier
+function UILibrary.new(identifier)
+    local self = setmetatable({}, UILibrary)
+    self.identifier = identifier or tostring(tick())
+    self.windows = {}
+    self.connections = {}
+    self._destroyed = false
+    
+    -- Register instance
+    UILibrary._instances[self.identifier] = self
+    
+    return self
+end
+
+-- Check if an instance exists
+function UILibrary.exists(identifier)
+    return UILibrary._instances[identifier] ~= nil
+end
+
+-- Get existing instance or create new one
+function UILibrary.getInstance(identifier)
+    if UILibrary.exists(identifier) then
+        return UILibrary._instances[identifier]
+    end
+    return UILibrary.new(identifier)
+end
+
+-- Destroy instance and cleanup
+function UILibrary:Destroy()
+    if self._destroyed then return end
+    self._destroyed = true
+    
+    -- Destroy all windows
+    for _, window in pairs(self.windows) do
+        if window and window.ScreenGui then
+            pcall(function() window.ScreenGui:Destroy() end)
+        end
+    end
+    
+    -- Disconnect all connections
+    for _, conn in pairs(self.connections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    
+    self.windows = {}
+    self.connections = {}
+    UILibrary._instances[self.identifier] = nil
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- CORE UI COMPONENTS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+
 -- Create a minimalistic glass frame
 function UILibrary:CreateFrame(properties)
+    if self._destroyed then warn("Cannot create frame on destroyed UILibrary instance") return end
+    
     local frame = Instance.new("Frame")
     
     -- Sharp, modern styling
@@ -68,6 +133,7 @@ function UILibrary:CreateFrame(properties)
     frame.BorderSizePixel = 0
     frame.Size = properties.Size or UDim2.new(0, 200, 0, 100)
     frame.Position = properties.Position or UDim2.new(0, 0, 0, 0)
+    frame.ZIndex = properties.ZIndex or 1
     
     if properties.Parent then
         frame.Parent = properties.Parent
@@ -92,6 +158,8 @@ end
 
 -- Create a sleek button
 function UILibrary:CreateButton(properties)
+    if self._destroyed then warn("Cannot create button on destroyed UILibrary instance") return end
+    
     local button = Instance.new("TextButton")
     
     -- Clean button styling with better contrast
@@ -106,6 +174,7 @@ function UILibrary:CreateButton(properties)
     button.TextSize = properties.TextSize or 13
     button.Font = properties.Font or Enum.Font.GothamMedium
     button.AutoButtonColor = false -- Disable default button animations
+    button.ZIndex = properties.ZIndex or 2
     
     -- Add text stroke for better readability
     button.TextStrokeTransparency = properties.TextStroke == false and 1 or 0.8
@@ -132,6 +201,7 @@ function UILibrary:CreateButton(properties)
     -- Fluid hover animations
     local originalTransparency = properties.BackgroundTransparency or UILibrary.Transparency.Subtle
     local originalTextTransparency = properties.TextTransparency or 0
+    local originalSize = properties.Size or UDim2.new(0, 100, 0, 32)
     
     button.MouseEnter:Connect(function()
         local hoverTween = TweenService:Create(button, UILibrary.Animations.Quick, {
@@ -158,14 +228,14 @@ function UILibrary:CreateButton(properties)
     -- Press animation
     button.MouseButton1Down:Connect(function()
         local pressTween = TweenService:Create(button, UILibrary.Animations.Instant, {
-            Size = UDim2.new(button.Size.X.Scale, button.Size.X.Offset - 2, button.Size.Y.Scale, button.Size.Y.Offset - 1)
+            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 2, originalSize.Y.Scale, originalSize.Y.Offset - 1)
         })
         pressTween:Play()
     end)
     
     button.MouseButton1Up:Connect(function()
         local releaseTween = TweenService:Create(button, UILibrary.Animations.Quick, {
-            Size = properties.Size or UDim2.new(0, 100, 0, 32)
+            Size = originalSize
         })
         releaseTween:Play()
     end)
@@ -175,6 +245,8 @@ end
 
 -- Create sharp text label
 function UILibrary:CreateLabel(properties)
+    if self._destroyed then warn("Cannot create label on destroyed UILibrary instance") return end
+    
     local label = Instance.new("TextLabel")
     
     -- Clean text styling with high contrast
@@ -188,6 +260,7 @@ function UILibrary:CreateLabel(properties)
     label.Font = properties.Font or Enum.Font.Gotham
     label.TextXAlignment = properties.TextXAlignment or Enum.TextXAlignment.Center
     label.TextYAlignment = properties.TextYAlignment or Enum.TextYAlignment.Center
+    label.ZIndex = properties.ZIndex or 2
     
     -- Add subtle text stroke for better readability on transparent backgrounds
     label.TextStrokeTransparency = properties.TextStroke == false and 1 or 0.8
@@ -200,8 +273,11 @@ function UILibrary:CreateLabel(properties)
     return label
 end
 
+
 -- Create minimalistic container
 function UILibrary:CreateContainer(properties)
+    if self._destroyed then warn("Cannot create container on destroyed UILibrary instance") return end
+    
     local container = self:CreateFrame({
         Size = properties.Size or UDim2.new(1, -16, 0, 100),
         Position = properties.Position or UDim2.new(0, 8, 0, 0),
@@ -210,6 +286,7 @@ function UILibrary:CreateContainer(properties)
         CornerRadius = properties.CornerRadius or 6,
         BorderTransparency = UILibrary.Transparency.Medium,
         BorderColor = UILibrary.Colors.TextMuted,
+        ZIndex = properties.ZIndex or 1,
         Parent = properties.Parent
     })
     
@@ -224,6 +301,7 @@ function UILibrary:CreateContainer(properties)
             TextSize = properties.HeaderSize or 11,
             Font = Enum.Font.GothamMedium,
             TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = properties.ZIndex and properties.ZIndex + 1 or 2,
             Parent = container
         })
     end
@@ -231,14 +309,98 @@ function UILibrary:CreateContainer(properties)
     return container
 end
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- WINDOW MANAGEMENT
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Create a managed window with auto-cleanup
+function UILibrary:CreateWindow(properties)
+    if self._destroyed then warn("Cannot create window on destroyed UILibrary instance") return end
+    
+    local windowId = properties.Id or ("window_" .. tostring(#self.windows + 1))
+    
+    -- Check if window already exists
+    if self.windows[windowId] then
+        warn("Window with ID '" .. windowId .. "' already exists. Destroying old one.")
+        self:DestroyWindow(windowId)
+    end
+    
+    local pg = Players.LocalPlayer and Players.LocalPlayer:FindFirstChild("PlayerGui")
+    if not pg then
+        warn("PlayerGui not found")
+        return nil
+    end
+    
+    -- Create ScreenGui
+    local sg = Instance.new("ScreenGui")
+    sg.Name = properties.Name or ("UILibrary_" .. windowId)
+    sg.ResetOnSpawn = properties.ResetOnSpawn ~= nil and properties.ResetOnSpawn or false
+    sg.IgnoreGuiInset = properties.IgnoreGuiInset ~= nil and properties.IgnoreGuiInset or true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.DisplayOrder = properties.DisplayOrder or 100
+    
+    -- Check for existing ScreenGui with same name and remove it
+    local existing = pg:FindFirstChild(sg.Name)
+    if existing then
+        existing:Destroy()
+    end
+    
+    sg.Parent = pg
+    
+    -- Create window object
+    local window = {
+        Id = windowId,
+        ScreenGui = sg,
+        Visible = true,
+        _destroyed = false
+    }
+    
+    self.windows[windowId] = window
+    
+    return window, sg
+end
+
+-- Destroy specific window
+function UILibrary:DestroyWindow(windowId)
+    local window = self.windows[windowId]
+    if not window then return end
+    
+    if window.ScreenGui then
+        pcall(function() window.ScreenGui:Destroy() end)
+    end
+    
+    window._destroyed = true
+    self.windows[windowId] = nil
+end
+
+-- Toggle window visibility
+function UILibrary:ToggleWindow(windowId)
+    local window = self.windows[windowId]
+    if not window or window._destroyed then return end
+    
+    window.Visible = not window.Visible
+    if window.ScreenGui then
+        window.ScreenGui.Enabled = window.Visible
+    end
+    
+    return window.Visible
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- SPECIALIZED COMPONENTS
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- Create compact score display
 function UILibrary:CreateScoreCard(properties)
+    if self._destroyed then return end
+    
     local scoreFrame = self:CreateFrame({
         Size = properties.Size or UDim2.new(0.45, 0, 0, 36),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
         BackgroundColor = properties.Color or UILibrary.Colors.Primary,
         BackgroundTransparency = UILibrary.Transparency.Subtle,
         CornerRadius = 4,
+        ZIndex = properties.ZIndex,
         Parent = properties.Parent
     })
     
@@ -252,6 +414,7 @@ function UILibrary:CreateScoreCard(properties)
         TextSize = 16,
         Font = Enum.Font.GothamBold,
         TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = properties.ZIndex and (properties.ZIndex + 1),
         Parent = scoreFrame
     })
     
@@ -265,6 +428,7 @@ function UILibrary:CreateScoreCard(properties)
         TextSize = 10,
         Font = Enum.Font.GothamMedium,
         TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = properties.ZIndex and (properties.ZIndex + 1),
         Parent = scoreFrame
     })
     
@@ -273,12 +437,15 @@ end
 
 -- Create slim probability bar
 function UILibrary:CreateProbabilityBar(properties)
+    if self._destroyed then return end
+    
     local barFrame = self:CreateFrame({
         Size = properties.Size or UDim2.new(0.32, 0, 0, 24),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
         BackgroundColor = properties.Color or UILibrary.Colors.Info,
         BackgroundTransparency = UILibrary.Transparency.Subtle,
         CornerRadius = 2,
+        ZIndex = properties.ZIndex,
         Parent = properties.Parent
     })
     
@@ -290,6 +457,7 @@ function UILibrary:CreateProbabilityBar(properties)
         TextTransparency = 0,
         TextSize = 11,
         Font = Enum.Font.GothamBold,
+        ZIndex = properties.ZIndex and (properties.ZIndex + 1),
         Parent = barFrame
     })
     
@@ -298,6 +466,8 @@ end
 
 -- Create card button with state management
 function UILibrary:CreateCardButton(properties)
+    if self._destroyed then return end
+    
     local cardBtn = self:CreateButton({
         Size = properties.Size or UDim2.new(0, 28, 0, 22),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
@@ -309,6 +479,7 @@ function UILibrary:CreateCardButton(properties)
         TextSize = 11,
         Font = Enum.Font.GothamBold,
         CornerRadius = 2,
+        ZIndex = properties.ZIndex,
         Parent = properties.Parent
     })
     
@@ -317,6 +488,8 @@ end
 
 -- Create target selector button
 function UILibrary:CreateTargetButton(properties)
+    if self._destroyed then return end
+    
     local targetBtn = self:CreateButton({
         Size = properties.Size or UDim2.new(0, 64, 0, 24),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
@@ -328,6 +501,7 @@ function UILibrary:CreateTargetButton(properties)
         TextSize = 12,
         Font = Enum.Font.GothamBold,
         CornerRadius = 2,
+        ZIndex = properties.ZIndex,
         Parent = properties.Parent
     })
     
@@ -336,12 +510,15 @@ end
 
 -- Create card indicator
 function UILibrary:CreateCardIndicator(properties)
+    if self._destroyed then return end
+    
     local indicator = self:CreateFrame({
         Size = properties.Size or UDim2.new(0, 28, 0, 16),
         Position = properties.Position or UDim2.new(0, 0, 0, 0),
         BackgroundColor = properties.Color or UILibrary.Colors.Warning,
         BackgroundTransparency = UILibrary.Transparency.Medium,
         CornerRadius = 2,
+        ZIndex = properties.ZIndex,
         Parent = properties.Parent
     })
     
@@ -353,20 +530,24 @@ function UILibrary:CreateCardIndicator(properties)
         TextTransparency = 0,
         TextSize = 9,
         Font = Enum.Font.GothamBold,
+        ZIndex = properties.ZIndex and (properties.ZIndex + 1),
         Parent = indicator
     })
     
     return indicator
 end
 
+
 -- Make frame draggable with fluid motion
 function UILibrary:MakeDraggable(frame, dragHandle)
+    if self._destroyed then return end
+    
     local dragHandle = dragHandle or frame
     local dragging = false
     local dragStart = nil
     local startPos = nil
     
-    dragHandle.InputBegan:Connect(function(input)
+    local conn1 = dragHandle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
@@ -380,12 +561,18 @@ function UILibrary:MakeDraggable(frame, dragHandle)
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input)
+    local conn2 = UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+    
+    -- Store connections for cleanup
+    table.insert(self.connections, conn1)
+    table.insert(self.connections, conn2)
+    
+    return conn1, conn2
 end
 
 -- Smooth entrance animation
@@ -453,7 +640,10 @@ end
 
 -- Sleek notification system
 function UILibrary:CreateNotification(properties)
-    local gui = properties.Parent or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    if self._destroyed then return end
+    
+    local gui = properties.Parent or (Players.LocalPlayer and Players.LocalPlayer:FindFirstChild("PlayerGui"))
+    if not gui then return end
     
     local notification = self:CreateFrame({
         Size = UDim2.new(0, 280, 0, 60),
@@ -461,6 +651,7 @@ function UILibrary:CreateNotification(properties)
         BackgroundColor = UILibrary.Colors.Primary,
         BackgroundTransparency = UILibrary.Transparency.Light,
         CornerRadius = 4,
+        ZIndex = 1000,
         Parent = gui
     })
     
@@ -473,6 +664,7 @@ function UILibrary:CreateNotification(properties)
         TextSize = 12,
         Font = Enum.Font.GothamBold,
         TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 1001,
         Parent = notification
     })
     
@@ -486,6 +678,7 @@ function UILibrary:CreateNotification(properties)
         Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 1001,
         Parent = notification
     })
     
@@ -493,12 +686,48 @@ function UILibrary:CreateNotification(properties)
     self:AnimateSlide(notification, UDim2.new(1, -290, 0, 10), 0.3)
     
     -- Auto dismiss
-    spawn(function()
-        wait(properties.Duration or 2.5)
+    task.spawn(function()
+        task.wait(properties.Duration or 2.5)
         self:AnimateSlide(notification, UDim2.new(1, 10, 0, 10), 0.3)
-        wait(0.3)
-        notification:Destroy()
+        task.wait(0.3)
+        pcall(function() notification:Destroy() end)
     end)
+    
+    return notification
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- LEGACY/STATIC METHODS (for backwards compatibility)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Static methods that don't require instance
+local StaticUILibrary = {}
+
+function StaticUILibrary:CreateFrame(properties)
+    return UILibrary.CreateFrame(UILibrary, properties)
+end
+
+function StaticUILibrary:CreateButton(properties)
+    return UILibrary.CreateButton(UILibrary, properties)
+end
+
+function StaticUILibrary:CreateLabel(properties)
+    return UILibrary.CreateLabel(UILibrary, properties)
+end
+
+function StaticUILibrary:CreateContainer(properties)
+    return UILibrary.CreateContainer(UILibrary, properties)
+end
+
+function StaticUILibrary:MakeDraggable(frame, dragHandle)
+    return UILibrary.MakeDraggable(UILibrary, frame, dragHandle)
+end
+
+-- Copy static methods
+for k, v in pairs(StaticUILibrary) do
+    if not UILibrary[k] then
+        UILibrary[k] = v
+    end
 end
 
 -- Smooth toggle visibility
